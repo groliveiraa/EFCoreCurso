@@ -14,19 +14,20 @@ namespace EFCore.WebAPI.Controllers
     [ApiController]
     public class HeroiController : ControllerBase
     {
-        private readonly HeroiContext _context;
+        private readonly IEFCoreRepository _repo;
 
-        public HeroiController(HeroiContext context)
+        public HeroiController(IEFCoreRepository repo)
         {
-            _context = context;
+            _repo = repo;
         }
         // GET: api/Heroi
         [HttpGet]
-        public ActionResult Get()
+        public async Task<IActionResult> Get()
         {
             try
             {
-                return Ok(new Heroi());
+                var herois = await _repo.GetAllHerois(true);
+                return Ok(herois);
             }
             catch (Exception ex)
             {
@@ -36,52 +37,85 @@ namespace EFCore.WebAPI.Controllers
 
         // GET: api/Heroi/5
         [HttpGet("{id}", Name = "Get")]
-        public ActionResult Get(int id)
-        {
-            return Ok();        }
-
-        // POST: api/Heroi
-        [HttpPost]
-        public ActionResult Post(Heroi model)
+        public async Task<IActionResult> Get(int id)
         {
             try
             {
-                _context.Herois.Add(model);
-                _context.SaveChanges();
-
-                return Ok("Heroi Cadastrado!");
+                var herois = await _repo.GetHeroiById(id, true);
+                return Ok(herois);
             }
             catch (Exception ex)
             {
                 return BadRequest($"Erro: {ex}");
             }
+        }
+
+        // POST: api/Heroi
+        [HttpPost]
+        public async Task<IActionResult> Post(Heroi model)
+        {
+            try
+            {
+                _repo.Add(model);
+
+                if (await _repo.SaveChangesAsync())
+                {
+                    return Ok("Heroi Cadastrado!");
+                }
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"Erro: {ex}");
+            }
+
+            return BadRequest("Não Cadastrado");
         }
 
         // PUT: api/Heroi/5
         [HttpPut("{id}")]
-        public ActionResult Put(int id, Heroi model)
+        public async Task<IActionResult> Put(int id, Heroi model)
         {
             try
             {
-               if(_context.Herois.AsNoTracking().FirstOrDefault(h => h.Id == id) != null)
+                var heroi = await _repo.GetHeroiById(id);
+                if (heroi != null)
                 {
-                    _context.Update(model);
-                    _context.SaveChanges();
+                    _repo.Update(model);
 
-                    return Ok("Heroi Atualizado!");
+                    if (await _repo.SaveChangesAsync())
+
+                        return Ok("Atualizado!");
                 }
-                return Ok("Não Encontrado!");
             }
             catch (Exception ex)
             {
                 return BadRequest($"Erro: {ex}");
             }
+
+            return BadRequest($"Não Atualizado!");
         }
 
         // DELETE: api/ApiWithActions/5
         [HttpDelete("{id}")]
-        public void Delete(int id)
+        public async Task<IActionResult> Delete(int id)
         {
+            try
+            {
+                var heroi = await _repo.GetHeroiById(id);
+                if (heroi != null)
+                {
+                    _repo.Delete(heroi);
+                    if (await _repo.SaveChangesAsync())
+
+                        return Ok("Deletado!");
+                }
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"Erro: {ex}");
+            }
+
+            return BadRequest($"Não Deletado!");
         }
     }
 }
